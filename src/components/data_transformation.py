@@ -147,14 +147,19 @@ class DataTransformation:
             exist_ok=True
         )
 
+         # Define a function to get the first value of a series
+        def get_first_value(series):
+            return series.iloc[0]
+        
+        # Apply the function on the 'MRI' column grouped by the two specified columns
+        iri['INITIAL_IRI'] = iri.groupby(['STATE_CODE', 'SHRP_ID'])['MRI'].transform(get_first_value)
+
         columns = [
         "STATE_CODE",
+        "STATE_CODE_EXP",
         "SHRP_ID",
-        "CONSTRUCTION_NO",
         "MRI",
-        "NEXT_MRI",
-        "NEXT_VISIT_DATE",
-        "YEARS_TO_NEXT",
+        "INITIAL_IRI",
         "AADTT_ALL_TRUCKS_TREND",
         "TOTAL_ANN_PRECIP",
         "MEAN_ANN_TEMP_AVG",
@@ -162,14 +167,13 @@ class DataTransformation:
         "FREEZE_THAW_YR",
         "PAVEMENT_AGE",
         "SN",
-        "DIRECTION_OF_TRAVEL_EXP"
         ]
 
-        iri = iri[columns]
-        
+        iri = iri[columns]             
+
         iri = iri.sort_values(
-        by=["SHRP_ID", "CONSTRUCTION_NO", "PAVEMENT_AGE"]
-        ).reset_index(drop=True)
+                by=["SHRP_ID","STATE_CODE","PAVEMENT_AGE"]
+                ).reset_index(drop=True)
 
         iri.to_csv(
             self.output,

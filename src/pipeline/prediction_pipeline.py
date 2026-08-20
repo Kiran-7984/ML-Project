@@ -14,9 +14,17 @@ class PredictionPipeline:
 
         data = pd.DataFrame(data)
 
-        prediction = self.model.predict(
-            data
+        data = data.drop(
+            columns=[
+            "MRI",
+            "SHRP_ID",
+            "STATE_CODE",
+            "STATE_CODE_EXP"
+        ],
+            errors="ignore"
         )
+
+        prediction = self.model.predict(data)
 
         return prediction
 
@@ -24,16 +32,9 @@ class PredictionPipeline:
 if __name__ == "__main__":
 
     data = pd.read_csv(
-        "data/processed/iri_deterioration.csv"
-    )
-
-    data = data.drop(
-        columns=["NEXT_MRI","NEXT_VISIT_DATE",
-                "MRI_CHANGE",
-                "IRI_DETERIORATION_RATE","YEARS_TO_NEXT"],
-        errors="ignore"
-    )
+        "data/processed/iri_deterioration.csv")
 
     predictions = PredictionPipeline().predict(data)
 
     print(predictions[:10])
+
