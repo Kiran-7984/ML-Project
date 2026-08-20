@@ -6,7 +6,7 @@ def main():
 
     data = DataTransformation().transform()
 
-    ModelTrainer().train(data)
+    # ModelTrainer().train(data)
 
 
 if __name__ == "__main__":

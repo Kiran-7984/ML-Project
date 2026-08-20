@@ -94,40 +94,39 @@ class DataTransformation:
             errors="coerce"
         ).fillna(0)
 
-        layers["AC"] = layers["BASE"] = layers["SUBBASE"] = 0
+        coefficients = {
+            "Asphalt concrete layer": 0.44,
+            "Unbound (granular) base": 0.14,
+            "Unbound (granular) subbase": 0.07,
+            "Bound (treated) base": 0.23,
+            "Bound (treated) subbase": 0.07,
+            "Subgrade (untreated)": 0.00
+        }
 
-        iri_types = layers["LAYER_TYPE_EXP"]
+        layers["THICKNESS_IN"] = layers["REPR_THICKNESS"] / 25.4
 
-        layers.loc[
-            iri_types == "Asphalt concrete layer", "AC"
-        ] = layers["REPR_THICKNESS"]
+        layers["SN"] = (
+            layers["THICKNESS_IN"]
+            * layers["LAYER_TYPE_EXP"].map(coefficients)
+        )
 
-        layers.loc[
-            iri_types.str.contains("base", case=False, na=False)
-            & ~iri_types.str.contains("subbase", case=False, na=False),
-            "BASE"
-        ] = layers["REPR_THICKNESS"]
+        # One SN value for each pavement construction
+        sn = (
+            layers.groupby(
+                ["STATE_CODE", "SHRP_ID", "CONSTRUCTION_NO"],
+                as_index=False
+            )["SN"]
+            .sum()
+        )
 
-        layers.loc[
-            iri_types.str.contains("subbase", case=False, na=False),
-            "SUBBASE"
-        ] = layers["REPR_THICKNESS"]
-
-        layers = layers.groupby(ckeys)[
-            ["AC", "BASE", "SUBBASE"]
-        ].sum().reset_index()
-
-        layers = layers.rename(columns={
-            "AC": "AC_THICKNESS",
-            "BASE": "BASE_THICKNESS",
-            "SUBBASE": "SUBBASE_THICKNESS"
-        })
-
+        # Add SN to IRI data
         iri = iri.merge(
-            layers,
-            on=ckeys,
+            sn,
+            on=["STATE_CODE", "SHRP_ID", "CONSTRUCTION_NO"],
             how="left"
         )
+
+        print("SN added:", iri["SN"].notna().sum())
 
         iri["MRI_CHANGE"] = (
             iri["NEXT_MRI"] - iri["MRI"]
@@ -147,6 +146,7 @@ class DataTransformation:
             parents=True,
             exist_ok=True
         )
+
         columns = [
         "STATE_CODE",
         "SHRP_ID",
@@ -161,20 +161,15 @@ class DataTransformation:
         "FREEZE_INDEX_YR",
         "FREEZE_THAW_YR",
         "PAVEMENT_AGE",
-        "AC_THICKNESS",
-        "BASE_THICKNESS",
-        "SUBBASE_THICKNESS",
-        "LANE_WIDTH",
-        "SECTION_LENGTH",
+        "SN",
         "DIRECTION_OF_TRAVEL_EXP"
         ]
 
-        columns = [
-            col for col in columns
-            if col in iri.columns
-        ]
-
         iri = iri[columns]
+        
+        iri = iri.sort_values(
+        by=["SHRP_ID", "CONSTRUCTION_NO", "PAVEMENT_AGE"]
+        ).reset_index(drop=True)
 
         iri.to_csv(
             self.output,
